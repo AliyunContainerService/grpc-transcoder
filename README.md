@@ -15,3 +15,17 @@ protoc \
     --descriptor_set_out=landing.proto-descriptor \
     "${proto_path}"/landing.proto
 ```
+
+```bash
+make build
+```
+
+```bash
+grpc-transcoder \
+--version 1.7 \
+--service_port 9996 \
+--service_name grpc-server-svc \
+--proto_pkg org.feuyeux.grpc \
+--proto_svc LandingService \
+--descriptor landing.proto-descriptor
+```
