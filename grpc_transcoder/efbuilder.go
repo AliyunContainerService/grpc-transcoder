@@ -16,13 +16,39 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	TranscodeFile = "grpc-transcoder-envoyfilter.yaml"
+	H2MFile       = "header2metadata-envoyfilter.yaml"
+)
+
 var (
 	V16 = `^1\.6.*`
 	V17 = `^1\.7.*`
 	V18 = `^1\.8.*`
 )
 
-func BuildEf(descriptorFilePath string, packages []string, services []string, version string, serviceName string, servicePort int) error {
+func BuildHeaderToMetadata(headers []string, version string, serviceName string, servicePort int) error {
+	maps := make(map[string]string)
+	for _, kv := range headers {
+		kvs := strings.Split(kv, "=")
+		maps[kvs[0]] = kvs[1]
+	}
+	params := map[string]interface{}{
+		"VERSION":        version,
+		"RE_VERSION":     getReVersion(version),
+		"FILTER_SERVICE": serviceName,
+		"FILTER_PORT":    servicePort,
+		"HEADERS":        maps,
+	}
+	f, err := os.Create(H2MFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return GetHeaderToMetadataTmplTmpl().Execute(f, params)
+}
+
+func BuildGrpcTranscoder(descriptorFilePath string, packages []string, services []string, version string, serviceName string, servicePort int) error {
 	if _, err := os.Stat(descriptorFilePath); os.IsNotExist(err) {
 		log.Printf("error opening descriptor file %q\n", descriptorFilePath)
 		return err
@@ -55,8 +81,14 @@ func BuildEf(descriptorFilePath string, packages []string, services []string, ve
 		"FILTER_PB":      descriptorBinary,
 		"PROTO_SERVICE":  protoServices,
 	}
-	return GetTemplate().Execute(os.Stdout, params)
+
+	f, err := os.Create(TranscodeFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return GetGrpcTranscoderTmpl().Execute(f, params)
 }
+
 func getReVersion(version string) string {
 	switch version {
 	case "1.6":

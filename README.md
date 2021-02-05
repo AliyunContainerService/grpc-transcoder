@@ -29,3 +29,6 @@ grpc-transcoder \
 --proto_svc LandingService \
 --descriptor landing.proto-descriptor
 ```
+
+- https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/grpc_json_transcoder_filter
+- https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/header_to_metadata_filter
