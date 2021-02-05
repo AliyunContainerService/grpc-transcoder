@@ -66,7 +66,7 @@ spec:
         proxy:
           proxyVersion: {{ .RE_VERSION }}
       patch:
-        operation: INSERT_BEFORE
+        operation: INSERT_FIRST
         value:
           name: envoy.filters.http.header_to_metadata
           typed_config:
