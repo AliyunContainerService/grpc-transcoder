@@ -24,17 +24,20 @@ func main() {
 			"[--proto_pkg acme.example] [--proto_svc 'http.*,echo.*'] [--version 1.8] [--headers x=a,y=b] " +
 			"--descriptor /path/to/descriptor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := grpc_transcoder.BuildGrpcTranscoder(descriptorFilePath, packages, services, version, serviceName, servicePort)
+			s, err := grpc_transcoder.BuildGrpcTranscoder(descriptorFilePath, packages, services, version, serviceName, servicePort)
 			if err != nil {
 				return err
+			} else {
+				err = grpc_transcoder.BuildHeaderToMetadata(headers, version, serviceName, servicePort)
+				if err != nil {
+					return err
+				} else {
+					log.Printf("DONE.\nPlease apply the below yaml files:\n%s\n%s",
+						grpc_transcoder.TranscodeFile,
+						grpc_transcoder.H2MFile)
+					log.Printf("EnvoyFilter:%s", *s)
+				}
 			}
-			err = grpc_transcoder.BuildHeaderToMetadata(headers, version, serviceName, servicePort)
-			if err != nil {
-				return err
-			}
-			log.Printf("DONE.\nPlease apply the below yaml files:\n%s\n%s",
-				grpc_transcoder.TranscodeFile,
-				grpc_transcoder.H2MFile)
 			return nil
 		},
 	}
