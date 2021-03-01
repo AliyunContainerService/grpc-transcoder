@@ -54,26 +54,46 @@ func BuildGrpcTranscoder(descriptorFilePath string, packages []string, services 
 		log.Printf("error opening descriptor file %q\n", descriptorFilePath)
 		return nil, err
 	}
-
 	descriptorBytes, err := ioutil.ReadFile(descriptorFilePath)
 	if err != nil {
 		log.Printf("error reading descriptor file %q\n", descriptorFilePath)
 		return nil, err
 	}
-
-	return buildGrpcTranscoder(descriptorBytes, packages, services, version, serviceName, servicePort)
+	return buildGrpcTranscoderByBs(descriptorBytes, packages, services, version, serviceName, servicePort)
 }
 
-func buildGrpcTranscoder(descriptorBytes []byte, packages []string, services []string, version string, serviceName string, servicePort int) (*string, error) {
+func buildGrpcTranscoderByString(descriptorBinary string, packages []string, services []string, version string, serviceName string, servicePort int) (*string, error) {
+	descriptorBytes, err := base64.StdEncoding.DecodeString(descriptorBinary)
+	if err != nil {
+		return nil, err
+	}
+	protoServices, err := checkServices(descriptorBytes, packages, services)
+	if err != nil {
+		return nil, err
+	}
+	return buildGrpcTranscoder(descriptorBinary, version, serviceName, servicePort, protoServices, err)
+}
+
+func buildGrpcTranscoderByBs(descriptorBytes []byte, packages []string, services []string, version string, serviceName string, servicePort int) (*string, error) {
+	protoServices, err := checkServices(descriptorBytes, packages, services)
+	if err != nil {
+		return nil, err
+	}
+	descriptorBinary := base64.StdEncoding.EncodeToString(descriptorBytes)
+	return buildGrpcTranscoder(descriptorBinary, version, serviceName, servicePort, protoServices, err)
+}
+
+func checkServices(descriptorBytes []byte, packages []string, services []string) ([]string, error) {
 	protoServices, err := getServices(&descriptorBytes, packages, services)
 	if err != nil {
 		log.Printf("error extracting services from descriptor: %v\n", err)
 		return nil, err
 	}
 	sort.Strings(protoServices)
+	return protoServices, nil
+}
 
-	descriptorBinary := base64.StdEncoding.EncodeToString(descriptorBytes)
-
+func buildGrpcTranscoder(descriptorBinary, version string, serviceName string, servicePort int, protoServices []string, err error) (*string, error) {
 	params := map[string]interface{}{
 		"VERSION":        version,
 		"RE_VERSION":     getReVersion(version),
@@ -86,21 +106,15 @@ func buildGrpcTranscoder(descriptorBytes []byte, packages []string, services []s
 	buf := new(bytes.Buffer)
 	err = GetGrpcTranscoderTmpl().Execute(buf, params)
 	s := buf.String()
+
+	f, err := os.Create(TranscodeFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.Write(buf.Bytes())
 	return &s, err
 }
 
-func getReVersion(version string) string {
-	switch version {
-	case "1.6":
-		return V16
-	case "1.7":
-		return V17
-	case "1.8":
-		return V18
-	default:
-		return V17
-	}
-}
 func getServices(b *[]byte, packages []string, services []string) ([]string, error) {
 	var (
 		fds  descriptor.FileDescriptorSet
@@ -152,4 +166,17 @@ func getServices(b *[]byte, packages []string, services []string) ([]string, err
 		}
 	}
 	return out, errs
+}
+
+func getReVersion(version string) string {
+	switch version {
+	case "1.6":
+		return V16
+	case "1.7":
+		return V17
+	case "1.8":
+		return V18
+	default:
+		return V17
+	}
 }
